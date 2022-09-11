@@ -6,7 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"math/big"
+	"math"
 	"net"
 )
 
@@ -39,8 +39,8 @@ func main() {
 }
 
 type Request struct {
-	Method *string         `json:"method"`
-	Number json.RawMessage `json:"number"`
+	Method *string  `json:"method"`
+	Number *float64 `json:"number"`
 }
 
 type Response struct {
@@ -88,7 +88,7 @@ func process(payload []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	if req.Method == nil || len(req.Number) == 0 {
+	if req.Method == nil || req.Number == nil {
 		return nil, fmt.Errorf("required field missing")
 	}
 
@@ -96,41 +96,21 @@ func process(payload []byte) ([]byte, error) {
 		return nil, fmt.Errorf("method value mismatch")
 	}
 
-	if req.Number[0] == '"' {
-		return nil, fmt.Errorf("incorrect number value")
-
-	}
-
-	num, _, err := big.ParseFloat(string(req.Number), 10, 127, big.ToNearestAway)
-	if err != nil {
-		return nil, fmt.Errorf("incorrect number value")
-	}
-
 	resp := Response{
 		Method: "isPrime",
-		Prime:  isPrimeBigInt(num),
+		Prime:  isPrime(*req.Number),
 	}
 
 	return json.Marshal(resp)
 }
 
-func isPrimeBigInt(num *big.Float) bool {
-	if !num.IsInt() {
+func isPrime(num float64) bool {
+	if math.Floor(num) != math.Ceil(num) || num <= 1 {
 		return false
 	}
 
-	n := new(big.Int)
-	num.Int(n)
-	if n.Cmp(big.NewInt(1)) < 1 {
-		return false
-	}
-
-	sqrtN := new(big.Int)
-	sqrtN.Sqrt(n)
-
-	for i := big.NewInt(2); i.Cmp(sqrtN) < 1; i.Add(i, big.NewInt(1)) {
-		mod := new(big.Int)
-		if mod.Mod(n, i).Cmp(big.NewInt(0)) == 0 {
+	for i := float64(2); i <= math.Sqrt(num); i++ {
+		if math.Mod(num, i) == 0 {
 			return false
 		}
 	}
